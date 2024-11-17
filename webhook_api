@@ -1,0 +1,59 @@
+from flask import Flask, request, jsonify
+import argparse
+import hmac
+import hashlib
+app = Flask(__name__)
+
+# Route API qui sera appelée par le webhook
+@app.route('/webhook', methods=['POST'])
+def webhook():
+
+    signature = request.headers.get('X-Hub-Signature-256')
+    
+    if not signature:
+        abort(400, "Signature manquante")
+    
+    with open('token', 'r') as file:
+        token = file.read().strip()  # Utiliser strip() pour enlever les éventuels espaces ou retours à la ligne
+
+
+    # Récupérer le payload (le corps de la requête)
+    payload = request.get_data()
+
+    # Générer la signature attendue avec le secret et comparer avec celle de GitHub
+    expected_signature = 'sha256=' + hmac.new(
+        bytes(token, 'utf-8'),
+        msg=payload,
+        digestmod=hashlib.sha256
+    ).hexdigest()
+
+    # Vérifier si la signature envoyée correspond à la signature générée
+    if not hmac.compare_digest(expected_signature, signature):
+        abort(400, "Signature invalide")
+
+    print('signature autorisée')
+
+    # On vérifie si la requête contient des données JSON
+    if request.is_json:
+        data = request.get_json()
+        print('request: ',request.headers)       
+        # Affiche les données reçues dans la console (ou effectue un traitement)
+        print("Données reçues :", data)
+
+        # Réponse JSON pour confirmer la réception
+        return jsonify({"message": "Webhook reçu avec succès", "data": data}), 200
+    else:
+        return jsonify({"error": "Données invalides, veuillez envoyer du JSON"}), 400
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Lancer l'API Flask avec un port et un host personnalisés")
+    
+    # Ajouter des arguments pour l'host et le port
+    parser.add_argument('--host', type=str, default='127.0.0.1', help='Adresse du serveur (ex: 127.0.0.1 ou 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=5000, help='Port à utiliser pour l\'application Flask')
+    
+    # Parser les arguments
+    args = parser.parse_args()
+
+    # Lancer l'application Flask avec les paramètres spécifiés
+    app.run(debug=True, host=args.host, port=args.port)
