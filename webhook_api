@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import argparse
 import hmac
 import hashlib
+import subprocess
 app = Flask(__name__)
 
 # Route API qui sera appelée par le webhook
@@ -36,12 +37,17 @@ def webhook():
     # On vérifie si la requête contient des données JSON
     if request.is_json:
         data = request.get_json()
-        print('request: ',request.headers)       
+        #print('request: ',request.headers)       
         # Affiche les données reçues dans la console (ou effectue un traitement)
-        print("Données reçues :", data)
-
+        #print("Données reçues :", data)
+        git_info = {}
+        git_info['name'] = data["repository"]['name']
+        #git_info['clone'] = data['ssh_url']
+        result = subprocess.run(['sh', 'script_hello.sh'], capture_output=True, text=True)
+        print("script executé")
+	
         # Réponse JSON pour confirmer la réception
-        return jsonify({"message": "Webhook reçu avec succès", "data": data}), 200
+        return jsonify({"message": "Webhook reçu avec succès", "data": git_info}), 200
     else:
         return jsonify({"error": "Données invalides, veuillez envoyer du JSON"}), 400
 
@@ -49,7 +55,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Lancer l'API Flask avec un port et un host personnalisés")
     
     # Ajouter des arguments pour l'host et le port
-    parser.add_argument('--host', type=str, default='127.0.0.1', help='Adresse du serveur (ex: 127.0.0.1 ou 0.0.0.0)')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Adresse du serveur (ex: 127.0.0.1 ou 0.0.0.0)')
     parser.add_argument('--port', type=int, default=5000, help='Port à utiliser pour l\'application Flask')
     
     # Parser les arguments
